@@ -90,13 +90,16 @@ exports.makeBackend = ({sendQuery} /*:BackendInitOptions*/) => {
     return {sendQuery}
 }
 
+
+// Load queries that are available by default for each store
+const defaultQueryMap = loadQueries(path.join(__dirname, 'defaultQueries'))
+
 exports.makeStore = (backend /*:Backend*/, spec /*:StoreInitOptions*/) => {
-    // TODO: (later) also load default queries
     const {tableName, sqlPath} = spec
     assert(tableName, 'tableName must be provided when making a store')
 
     const storeConfig = {tableName}
-    const queryMap = loadQueries(sqlPath)
+    const queryMap = Object.assign({}, defaultQueryMap, loadQueries(sqlPath))
     const queryNames = Object.keys(queryMap)
     const queryFnMap = queryNames.reduce((acc, queryName) => {
         const queryText = queryMap[queryName]
