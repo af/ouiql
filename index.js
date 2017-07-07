@@ -1,3 +1,4 @@
+// @flow
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -7,8 +8,24 @@ const sqlFileRegex = /(\w+)\.sql$/
 const sqlFilenameToQueryName = fname => sqlFileRegex.exec(fname)[1]
 
 
-// dirPath -> { queryName: querySQL }
-const loadQueries = (pathToDir, storeConfig) => {
+/*::
+type BackendInitOptions = {
+    sendQuery: function
+}
+type Backend = {
+    sendQuery: function
+}
+
+type StoreInitOptions = {
+    tableName: string,
+    sqlPath: string
+}
+type StoreConfig = {
+    tableName: string
+}
+*/
+
+const loadQueries = (pathToDir = '') /*:Object*/ => {
     const queryMap = {}
     const files = fs.readdirSync(pathToDir)
     const sqlFiles = files.filter(f => sqlFileRegex.test(f))
@@ -56,7 +73,7 @@ const returnTypeFromSQL = query => {
 
 // storeConfig: static query params (tableName)
 // arghash = runtime query parameters
-const sqlTextToQueryFn = (runDbQuery, storeConfig, sqlText) => (argHash = {}) => {
+const sqlTextToQueryFn = (runDbQuery, storeConfig /*:StoreConfig*/, sqlText) => (argHash = {}) => {
     const [query, params] = injectParamsToQuery(sqlText, storeConfig, argHash)
     const returnType = returnTypeFromSQL(sqlText)
     debug(`returning: ${JSON.stringify(returnType)}, params: ${JSON.stringify(params)}`)
@@ -69,17 +86,17 @@ const sqlTextToQueryFn = (runDbQuery, storeConfig, sqlText) => (argHash = {}) =>
     })
 }
 
-exports.makeBackend = ({sendQuery}) => {
+exports.makeBackend = ({sendQuery} /*:BackendInitOptions*/) => {
     return {sendQuery}
 }
 
-exports.makeStore = (backend, spec) => {
+exports.makeStore = (backend /*:Backend*/, spec /*:StoreInitOptions*/) => {
     // TODO: (later) also load default queries
-    const {tableName} = spec
+    const {tableName, sqlPath} = spec
     assert(tableName, 'tableName must be provided when making a store')
 
     const storeConfig = {tableName}
-    const queryMap = loadQueries(spec.sqlPath, storeConfig)
+    const queryMap = loadQueries(sqlPath)
     const queryNames = Object.keys(queryMap)
     const queryFnMap = queryNames.reduce((acc, queryName) => {
         const queryText = queryMap[queryName]
@@ -87,7 +104,6 @@ exports.makeStore = (backend, spec) => {
         return acc
     }, {})
 
-    // TODO: change required file to createTable.sql
     assert(queryFnMap.create, 'create.sql must be present when making a store')
     debug(`Store "${tableName}" has queries:`, queryNames)
 
