@@ -1,0 +1,35 @@
+{
+  "name": "ouiql",
+  "version": "0.1.0",
+  "description": "[WIP] Database lib",
+  "main": "index.js",
+  "engines": {
+    "node": ">=8"
+  },
+  "engineStrict": true,
+  "scripts": {
+    "lint": "eslint index.js tests",
+    "test": "painless -r spec tests/*.js",
+    "coverage": "nyc npm test",
+    "prepush": "npm run lint && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/af/ouiql"
+  },
+  "keywords": [
+    "sql",
+    "database"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "debug": "2.6.8",
+    "eslint": "3.18.0",
+    "eslint-config-af": "af/eslint-config-af#51d7ef3",
+    "husky": "0.13.4",
+    "nyc": "11.0.2",
+    "painless": "0.9.5"
+  },
+  "author": "Aaron Franks",
+  "license": "MIT"
+}
