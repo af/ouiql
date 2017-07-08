@@ -1,2 +1,2 @@
 -- return: record
-SELECT * FROM :tableName WHERE id = :id;
+SELECT :readFields FROM :tableName WHERE id = :id;

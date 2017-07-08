@@ -6,6 +6,7 @@ const debug = require('debug')('ouiql')
 
 const sqlFileRegex = /(\w+)\.sql$/
 const sqlFilenameToQueryName = fname => sqlFileRegex.exec(fname)[1]
+const invalidVarChars = /[^\w, *]/g
 
 
 /*::
@@ -18,10 +19,13 @@ type Backend = {
 
 type StoreInitOptions = {
     tableName: string,
+    context: StoreContext,
     sqlPath: string
 }
-type StoreConfig = {
-    tableName: string
+type StoreContext = {
+    tableName: string,
+    readFields: string,
+    [string]: string
 }
 */
 
@@ -39,21 +43,24 @@ const loadQueries = (pathToDir = '') /*:Object*/ => {
 }
 
 // TODO: test to ensure no sql injection
-const injectParamsToQuery = (sqlText = '', {tableName}, argHash = {}) => {
+const injectParamsToQuery = (sqlText = '', staticCtx, argHash = {}) => {
     const params = []
 
     // node-pg expects params in the form $1, but for convenient psql usage it's
     // nice to have them as :named_arg. So convert from the psql type to the node-pg
     // form here. params is be an array containing the parameters for the node-pg query.
+    console.log('STATIC CTX', staticCtx)
     const replacer = (match, paramName) => {
-        params.push(argHash[paramName])
-        return `$${params.length}`
+        // Interpolate static query context first:
+        if (paramName in staticCtx) return staticCtx[paramName]
+        else {
+            params.push(argHash[paramName])
+            return `$${params.length}`
+        }
     }
 
     // tableName is a special cased var passed in to every query
-    const sanitizedTableName = tableName.replace(/\W/g, '')
-    const query = sqlText.replace(':tableName', sanitizedTableName)
-                         .replace(/:(\w+)/g, replacer)
+    const query = sqlText.replace(/:(\w+)/g, replacer)
     return [query, params]
 }
 
@@ -71,10 +78,10 @@ const returnTypeFromSQL = query => {
     return fieldName ? {field: fieldName} : type
 }
 
-// storeConfig: static query params (tableName)
+// storeContext: static query params (tableName)
 // arghash = runtime query parameters
-const sqlTextToQueryFn = (runDbQuery, storeConfig /*:StoreConfig*/, sqlText) => (argHash = {}) => {
-    const [query, params] = injectParamsToQuery(sqlText, storeConfig, argHash)
+const sqlTextToQueryFn = (runDbQuery, ctx /*:StoreContext*/, sqlText) => (argHash = {}) => {
+    const [query, params] = injectParamsToQuery(sqlText, ctx, argHash)
     const returnType = returnTypeFromSQL(sqlText)
     debug(`returning: ${JSON.stringify(returnType)}, params: ${JSON.stringify(params)}`)
 
@@ -90,20 +97,33 @@ exports.makeBackend = ({sendQuery} /*:BackendInitOptions*/) => {
     return {sendQuery}
 }
 
+const sanitizeCtx = (ctx /*:StoreContext*/) /*:StoreContext*/ => {
+    const keys = Object.keys(ctx)
+    return keys.reduce((acc, k) => {
+        let rawVar = ctx[k]
+        if (Array.isArray(rawVar)) rawVar = rawVar.join(', ')
+        acc[k] = rawVar.replace(invalidVarChars, '')
+        return acc
+    }, {})
+}
 
 // Load queries that are available by default for each store
 const defaultQueryMap = loadQueries(path.join(__dirname, 'defaultQueries'))
 
 exports.makeStore = (backend /*:Backend*/, spec /*:StoreInitOptions*/) => {
-    const {tableName, sqlPath} = spec
+    const {tableName, context = {}, sqlPath} = spec
     assert(tableName, 'tableName must be provided when making a store')
 
-    const storeConfig = {tableName}
+    // Set up the static context object that is interpolated into each query
+    const ctx = sanitizeCtx(
+        Object.assign({tableName, readFields: '*'}, context)
+    )
+
     const queryMap = Object.assign({}, defaultQueryMap, loadQueries(sqlPath))
     const queryNames = Object.keys(queryMap)
     const queryFnMap = queryNames.reduce((acc, queryName) => {
         const queryText = queryMap[queryName]
-        acc[queryName] = sqlTextToQueryFn(backend.sendQuery, storeConfig, queryText)
+        acc[queryName] = sqlTextToQueryFn(backend.sendQuery, ctx, queryText)
         return acc
     }, {})
 
