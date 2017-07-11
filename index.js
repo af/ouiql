@@ -7,17 +7,12 @@ const invalidVarChars = /[^\w, *]/g
 
 
 /*::
-type BackendInitOptions = {
-    sendQuery: function
-}
-type Backend = {
-    sendQuery: (string, Object) => Promise<*>,
-    buildQueryFunctions: ({sqlPath: string, ctx: Object}) => Object
-}
+
+import type Backend from './lib/backends.js'
 
 type StoreInitOptions = {
     tableName: string,
-    context: StoreContext,
+    context: {[string]: string},
     sqlPath: string
 }
 type StoreContext = {
