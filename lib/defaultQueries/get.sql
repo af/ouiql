@@ -1,2 +1,3 @@
 -- return: record
-SELECT :readFields FROM :tableName WHERE id = :id;
+SELECT :readFields FROM :relation WHERE id = :id;
+

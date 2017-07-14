@@ -1,2 +1,3 @@
 -- return: field(count)
-SELECT COUNT(*) FROM :tableName;
+SELECT COUNT(*) FROM :relation;
+

@@ -11,7 +11,7 @@ const invalidVarChars = /[^\w, *]/g
 import type {Backend, StoreContext} from './lib/backends.js'
 
 type StoreInitOptions = {
-    tableName: string,
+    relation: string,
     context: {[string]: string},
     sqlPath: string
 }
@@ -31,18 +31,18 @@ const sanitizeCtx = (ctx /*:StoreContext*/) /*:StoreContext*/ => {
 }
 
 exports.makeStore = (backend /*:Backend*/, spec /*:StoreInitOptions*/) => {
-    const {tableName, context = {}, sqlPath} = spec
-    assert(tableName, 'tableName must be provided when making a store')
+    const {relation, context = {}, sqlPath} = spec
+    assert(relation, '"relation" must be provided when making a store')
 
     // Set up the static context object that is interpolated into each query
     const ctx = sanitizeCtx(
-        Object.assign({tableName, readFields: '*'}, context)
+        Object.assign({relation, readFields: '*'}, context)
     )
 
     const queryFnMap/*:{[string]: function}*/ = backend.buildQueryFunctions({sqlPath, ctx})
 
     assert(queryFnMap.create, 'create.sql must be present when making a store')
-    debug(`Store "${tableName}" has queries:`, Object.keys(queryFnMap))
+    debug(`Store "${relation}" has queries:`, Object.keys(queryFnMap))
 
     return queryFnMap
 }
