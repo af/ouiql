@@ -8,17 +8,12 @@ const invalidVarChars = /[^\w, *]/g
 
 /*::
 
-import type Backend from './lib/backends.js'
+import type {Backend, StoreContext} from './lib/backends.js'
 
 type StoreInitOptions = {
     tableName: string,
     context: {[string]: string},
     sqlPath: string
-}
-type StoreContext = {
-    tableName: string,
-    readFields: string,
-    [string]: string
 }
 */
 
@@ -26,8 +21,10 @@ type StoreContext = {
 const sanitizeCtx = (ctx /*:StoreContext*/) /*:StoreContext*/ => {
     const keys = Object.keys(ctx)
     return keys.reduce((acc, k) => {
-        let rawVar = ctx[k]
-        if (Array.isArray(rawVar)) rawVar = rawVar.join(', ')
+        const contents /*:string*/ = ctx[k]
+        const rawVar = Array.isArray(contents)
+            ? contents.join(', ')
+            : contents
         acc[k] = rawVar.replace(invalidVarChars, '')
         return acc
     }, {})
@@ -42,7 +39,7 @@ exports.makeStore = (backend /*:Backend*/, spec /*:StoreInitOptions*/) => {
         Object.assign({tableName, readFields: '*'}, context)
     )
 
-    const queryFnMap = backend.buildQueryFunctions({sqlPath, ctx})
+    const queryFnMap/*:{[string]: function}*/ = backend.buildQueryFunctions({sqlPath, ctx})
 
     assert(queryFnMap.create, 'create.sql must be present when making a store')
     debug(`Store "${tableName}" has queries:`, Object.keys(queryFnMap))
